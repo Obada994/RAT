@@ -1,15 +1,18 @@
+import com.github.sarxos.webcam.Webcam;
+import com.github.sarxos.webcam.WebcamPanel;
+import com.github.sarxos.webcam.WebcamResolution;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.swing.*;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.util.ArrayList;
+import java.security.Key;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Scanner;
@@ -28,14 +31,24 @@ class Client
     private final int MB = 1024 * 1024;
     private enum MODE {STEALTH, NORMAL}
     private MODE mode;
-
+    // Encryption Key same as used in the server you're connecting to..(shared with the server)
+    private Key serverKey;
+    // Encryption key related to this user only and shared with whoever try to connect to this user
+    private Key thisKey;
 
 /*
     This constructor won't create a special folder for the downloaded files, the default path (Desktop) will be selected instead
     @para Socket
 */
-Client(Socket socket, MODE mode)
+Client(Socket socket, MODE mode, String serverKey, String thisKey)
 {
+    if(serverKey.length() < 16 || thisKey.length() < 16)
+    {
+        System.err.println("The encryption keys are incorrect (not 128 bit keys)");
+        System.exit(1);
+    }
+    this.serverKey = Utilities.generateKey(serverKey);
+    this.thisKey = Utilities.generateKey(thisKey);
     connect(socket);
     this.mode = mode;
     if(mode.equals(MODE.NORMAL)) System.out.println("> Connected to: " + socket.getInetAddress());
@@ -46,8 +59,16 @@ Client(Socket socket, MODE mode)
     @para Socket
     @para folder "Title only not a full path"
 */
-Client(Socket socket, String folder, MODE mode)
+Client(Socket socket, String folder, MODE mode, String serverKey, String thisKey)
 {
+    if(serverKey.length() < 16 || thisKey.length() < 16)
+    {
+        System.err.println("The encryption keys are incorrect (not 128 bit keys)");
+        System.exit(1);
+    }
+    this.serverKey = Utilities.generateKey(serverKey);
+    this.thisKey = Utilities.generateKey(thisKey);
+
     DOWNLOAD_DIR = DESKTOP + "/" + folder + "/";
     File file = new File(DOWNLOAD_DIR);
     if(!file.exists())
@@ -131,8 +152,8 @@ void listen()
         if(bytes == null) continue;
         try
         {
-            // Decrypt the array and make a json object from it
-            JSONObject json = new JSONObject(new String(Utilities.decrypt(bytes)));
+            // Decrypt the array coming from the server
+            JSONObject json = new JSONObject(new String(Utilities.decrypt(bytes, serverKey)));
             // Type of info this object is holding
             switch (json.getString("type"))
             {
@@ -183,7 +204,8 @@ void listen()
                                         toSend.put("file_name",absPath.substring(absPath.lastIndexOf('/') + 1, absPath.length()));
                                         toSend.put("file_extension","zip");
                                     }
-                                    sendObject(Utilities.encrypt(toSend.toString().getBytes()));
+                                    // Encrypt with serverKey and send it to the server
+                                    sendObject(Utilities.encrypt(toSend.toString().getBytes(), serverKey));
                                     if(mode == MODE.NORMAL)
                                         System.out.println("file uploaded");
                                 } catch (Exception e) {
@@ -224,7 +246,7 @@ private void console() throws IOException {
                     json.put("type", "request");
                     json.put("data","get");
                     json.put("path",absPath1.substring(1, absPath1.lastIndexOf('\"')));
-                    sendObject(Utilities.encrypt(json.toString().getBytes()));
+                    sendObject(Utilities.encrypt(json.toString().getBytes(), serverKey));
                     break;
                 case "upload ":
                     String absPath = scanner.findInLine(rx);
@@ -247,7 +269,7 @@ private void console() throws IOException {
                         json.put("file_extension","zip");
                     }
                     json.put("type","file");
-                    sendObject(Utilities.encrypt(json.toString().getBytes()));
+                    sendObject(Utilities.encrypt(json.toString().getBytes(), serverKey));
                     break;
             }
             scanner.close();
@@ -291,17 +313,35 @@ private String getDOWNLOAD_DIR()
 }
 public static void main (String[]args)throws Exception
 {
-    ServerSocket server = new ServerSocket(1234);
-    new Thread(() -> {
-        Client c2 = null;
-        while(c2==null) try {
-            c2 = new Client(server.accept(), MODE.STEALTH);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }).start();
-    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL);
-    c1.console();
-    c1.close();
+//    ServerSocket server = new ServerSocket(1234);
+//    new Thread(() -> {
+//        Client c2 = null;
+//        while(c2==null) try {
+//            c2 = new Client(server.accept(), MODE.STEALTH);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }).start();
+//    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL);
+//    c1.console();
+//    c1.close();
+
+    Webcam webcam = Webcam.getWebcams().get(0);
+    webcam.setViewSize(WebcamResolution.VGA.getSize());
+
+    WebcamPanel panel = new WebcamPanel(webcam);
+    panel.setFPSDisplayed(true);
+    panel.setDisplayDebugInfo(true);
+    panel.setImageSizeDisplayed(true);
+    panel.setMirrored(true);
+
+    JFrame window = new JFrame("Omid you're sleepy");
+    window.add(panel);
+    window.setResizable(true);
+    window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    window.pack();
+    window.setVisible(true);
+
+
 }
 }

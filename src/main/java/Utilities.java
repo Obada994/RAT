@@ -62,9 +62,8 @@ interface Utilities {
     /*
         Encrypt a byte array with AES 128 bit encryption
      */
-    static byte[] encrypt(byte[] Data) throws Exception
+    static byte[] encrypt(byte[] Data, Key key) throws Exception
     {
-        Key key = generateKey("secret1234ewrt54");
         Cipher c = Cipher.getInstance("AES");
         c.init(Cipher.ENCRYPT_MODE, key);
         return c.doFinal(Data);
@@ -79,9 +78,8 @@ interface Utilities {
     /*
     Decrypt byte array
      */
-    static byte[] decrypt(byte[] encryptedData) throws Exception
+    static byte[] decrypt(byte[] encryptedData, Key key) throws Exception
     {
-        Key key = generateKey("secret1234ewrt54");
         Cipher c = Cipher.getInstance("AES");
         c.init(Cipher.DECRYPT_MODE, key);
         return c.doFinal(encryptedData);

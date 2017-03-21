@@ -21,6 +21,7 @@ interface Utilities {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         //file to send
         File file = new File(absolutePath);
+        if(!file.exists()) return null;
         if(file.isDirectory())
         {
             zipDir(new File(absolutePath),System.getProperty("java.io.tmpdir")+"/dir.zip");

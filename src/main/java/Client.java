@@ -16,6 +16,7 @@ import java.security.Key;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Scanner;
+import java.util.concurrent.*;
 
 /**
  * Created by Obada on 2016-09-12.
@@ -313,23 +314,23 @@ private String getDOWNLOAD_DIR()
 }
 public static void main (String[]args)throws Exception
 {
-    String serverKey = "1234567890123456", thisKey = "123456789012345g";
-    ServerSocket server = new ServerSocket(1234);
-    new Thread(() -> {
-        Client c2 = null;
-        while(c2==null) try {
-            c2 = new Client(server.accept(), MODE.STEALTH, new String[]{serverKey,thisKey});
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }).start();
-    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL, new String[]{serverKey, thisKey});
-    c1.console();
-    c1.close();
+//    String serverKey = "1234567890123456", thisKey = "123456789012345g";
+//    ServerSocket server = new ServerSocket(1234);
+//    new Thread(() -> {
+//        Client c2 = null;
+//        while(c2==null) try {
+//            c2 = new Client(server.accept(), MODE.STEALTH, new String[]{serverKey,thisKey});
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }).start();
+//    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL, new String[]{serverKey, thisKey});
+//    c1.console();
+//    c1.close();
 
 //    Webcam webcam = Webcam.getWebcams().get(0);
 //    webcam.setViewSize(WebcamResolution.VGA.getSize());
-//
+////
 //    WebcamPanel panel = new WebcamPanel(webcam);
 //    panel.setFPSDisplayed(true);
 //    panel.setDisplayDebugInfo(true);
@@ -343,6 +344,16 @@ public static void main (String[]args)throws Exception
 //    window.pack();
 //    window.setVisible(true);
 
+    Executor exe = new Executor();
+    System.out.println(new String(exe.Execute("ls")));
+    exe.changePWD("/home/obada/Desktop");
+    System.out.println(new String(exe.Execute("ls")));
+    System.out.println(new String(exe.Execute("lssasa")));
+    System.out.println(new String(exe.Execute("ls")));
+    System.out.println(new String(exe.Execute("ifconfig")));
+    exe.Execute("ls");
+    System.out.println("MAGICCC" + new String(exe.Execute("iwcoDSnfig")));
+    System.out.println(new String(exe.Execute("ls")));
 
 }
 }

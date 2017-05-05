@@ -44,4 +44,13 @@ data: cmd
 command: "Any_Vaild_Command"
 }
 ```
-**Please notice that all the objects coming in and out any client are encrypted with AES 128 bit and in order to receive or send you need to decrypt with the same key as in the other client**
+**Please notice that all the objects incoming/outgoing any client are encrypted with AES 128 bit and in order to receive or send you need to decrypt with the same key**
+
+## TODO
+- [x] File access/transfer
+- [x] Support Linux Terminal access
+- [x] Support SUDO access
+- [] Transfer files +200 MB
+- [] Create a GUI
+- [] Create a hub (server) for any client to connect with their encryption key and IP address as a credentials
+The last goal is to create a hub where you just connect your laptop/pc..etc to it and by providing the correct ip address and encryption key for another user you can connect to them directly p2p.

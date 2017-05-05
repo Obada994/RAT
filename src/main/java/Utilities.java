@@ -10,6 +10,7 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * Created by obada on 10/13/16.
+ *
  */
 /*
 A static class for the utilities used in our project:(Encrypt,Decrypt,Compress)
@@ -28,7 +29,7 @@ interface Utilities {
             file = new File(System.getProperty("java.io.tmpdir") + "/dir.zip");
         }
         //bytes array to read bytes from the file 1MB at a time
-        byte[] bytes = new byte[1024*1024];
+        byte[] bytes = new byte[1024 * 1024];
         //count of bytes read from the file
         int count;
         try (FileInputStream inFile = new FileInputStream(file))

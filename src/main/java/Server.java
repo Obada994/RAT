@@ -171,11 +171,14 @@ private void run()
 }
 public static void main(String[] args) throws Exception
 {
-    Server server = new Server(1234);
-    //listen for connections
-    server.listen();
-    //read input from user to send requests to clients
-    server.run();
+//    Server server = new Server(1234);
+//    //listen for connections
+//    server.listen();
+//    //read input from user to send requests to clients
+//    server.run();
+    String str;
+    str = "1234";
+    System.out.println(str.charAt(str.length()));
 }
 
 }

@@ -54,4 +54,4 @@ command: "Any_Vaild_Command"
 - [ ] Transfer files +200 MB
 - [ ] Create a GUI
 - [ ] Create a hub (server) for any client to connect with their encryption key and IP address as a credentials.
-The last goal is to create a hub where you just connect your laptop/pc..etc to it and by providing the correct ip address and encryption key for another user you can connect to them directly p2p.
+*The last goal is to create a hub where you just connect your laptop/pc..etc to it and by providing the correct ip address and encryption key for another user you can connect to them directly P2P*.
